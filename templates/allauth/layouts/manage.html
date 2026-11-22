@@ -1,0 +1,29 @@
+{% extends "allauth/layouts/base.html" %}
+{% load i18n %}
+
+{% block account_navigation %}
+    {% if user.is_authenticated %}
+        {% url 'account_email' as email_url %}
+        {% url 'account_change_password' as password_url %}
+        {% url 'socialaccount_connections' as connections_url %}
+        {% url 'mfa_index' as mfa_url %}
+        {% url 'usersessions_list' as sessions_url %}
+        <nav class="auth-nav" aria-label="Gerenciamento da conta">
+            {% if email_url %}
+                <a href="{{ email_url }}">{% translate "Change Email" %}</a>
+            {% endif %}
+            {% if password_url %}
+                <a href="{{ password_url }}">{% translate "Change Password" %}</a>
+            {% endif %}
+            {% if connections_url %}
+                <a href="{{ connections_url }}">{% translate "Account Connections" %}</a>
+            {% endif %}
+            {% if mfa_url %}
+                <a href="{{ mfa_url }}">{% translate "Two-Factor Authentication" %}</a>
+            {% endif %}
+            {% if sessions_url %}
+                <a href="{{ sessions_url }}">{% translate "Sessions" %}</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+{% endblock account_navigation %}

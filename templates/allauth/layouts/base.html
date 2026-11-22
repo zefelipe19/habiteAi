@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block seo %}
+    <title>{% block head_title %}{% translate "Account" %}{% endblock head_title %} | HabiteAi</title>
+{% endblock seo %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+{% endblock extra_head %}
+
+{% block main %}
+    {% block body %}
+        <div class="auth-layout{% block layout_modifier %}{% endblock layout_modifier %}">
+            {% block account_navigation %}{% endblock account_navigation %}
+            <div class="auth-panel">
+                {% if messages %}
+                    <ul class="auth-messages" aria-label="{% translate 'Messages' %}">
+                        {% for message in messages %}
+                            <li class="auth-message {{ message.tags }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                {% block content %}{% endblock content %}
+            </div>
+        </div>
+    {% endblock body %}
+{% endblock main %}
