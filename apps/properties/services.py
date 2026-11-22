@@ -2,11 +2,39 @@ import logging
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 
 from .models import Property, PropertyAddress, PropertyImage
 
 
 logger = logging.getLogger(__name__)
+
+
+def search_published_properties(*, q='', property_type='', guests=None):
+    properties = (
+        Property.objects.filter(status=Property.Status.PUBLISHED)
+        .select_related('address')
+        .prefetch_related('images')
+        .order_by('-pk')
+    )
+    if q:
+        properties = properties.filter(
+            Q(title__icontains=q) | Q(address__city__icontains=q) | Q(address__neighborhood__icontains=q)
+        )
+    if property_type:
+        properties = properties.filter(property_type=property_type)
+    if guests is not None:
+        properties = properties.filter(max_guests__gte=guests)
+    return properties
+
+
+def featured_property_photos():
+    return (
+        PropertyImage.objects.filter(property__status=Property.Status.PUBLISHED)
+        .exclude(image='')
+        .select_related('property')
+        .order_by('-property_id', 'pk')[:5]
+    )
 
 
 def create_property(
@@ -74,12 +102,27 @@ def create_property(
 
 
 def list_owner_properties(*, owner):
-    return Property.objects.filter(owner=owner).prefetch_related('images').order_by('-pk')
+    return (
+        Property.objects.filter(owner=owner)
+        .select_related('address')
+        .prefetch_related('images')
+        .order_by('-pk')
+    )
+
+
+def update_property_status(*, owner, property_id, status):
+    if status not in Property.Status.values:
+        raise ValidationError({'status': 'Selecione um status válido.'})
+
+    updated = Property.objects.filter(pk=property_id, owner=owner).update(status=status)
+    if not updated:
+        raise Property.DoesNotExist
 
 
 def delete_property_image(*, owner, image_id):
     with transaction.atomic():
         photo = PropertyImage.objects.get(pk=image_id, property__owner=owner)
+        property_id = photo.property_id
         image_file = photo.image
         photo.delete()
 
@@ -88,3 +131,4 @@ def delete_property_image(*, owner, image_id):
                 image_file.delete(save=False)
 
         transaction.on_commit(delete_unused_file, robust=True)
+    return property_id
