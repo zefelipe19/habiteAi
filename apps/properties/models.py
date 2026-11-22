@@ -62,3 +62,20 @@ class Property(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class PropertyImage(models.Model):
+    property = models.ForeignKey(
+        Property,
+        on_delete=models.CASCADE,
+        related_name='images',
+        verbose_name='imóvel',
+    )
+    image = models.ImageField('imagem', upload_to='properties/images/', max_length=255)
+
+    class Meta:
+        verbose_name = 'imagem do imóvel'
+        verbose_name_plural = 'imagens dos imóveis'
+
+    def __str__(self):
+        return str(self.image)
