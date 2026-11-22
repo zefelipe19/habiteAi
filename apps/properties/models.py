@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 
 
@@ -79,3 +79,66 @@ class PropertyImage(models.Model):
 
     def __str__(self):
         return str(self.image)
+
+
+class PropertyAddress(models.Model):
+    property = models.OneToOneField(
+        Property,
+        on_delete=models.CASCADE,
+        related_name='address',
+        verbose_name='imóvel',
+    )
+    street = models.CharField('logradouro', max_length=200)
+    number = models.CharField('número', max_length=20)
+    complement = models.CharField('complemento', max_length=120, blank=True)
+    neighborhood = models.CharField('bairro', max_length=100, blank=True)
+    city = models.CharField('cidade', max_length=100)
+    state = models.CharField('estado ou província', max_length=100)
+    postal_code = models.CharField('CEP ou código postal', max_length=20)
+    country_code = models.CharField(
+        'código do país',
+        max_length=2,
+        default='BR',
+        validators=[
+            RegexValidator(r'\A[A-Z]{2}\Z', 'Use duas letras maiúsculas para o código do país.'),
+        ],
+    )
+    latitude = models.DecimalField(
+        'latitude',
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+    )
+    longitude = models.DecimalField(
+        'longitude',
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+    )
+
+    class Meta:
+        verbose_name = 'endereço do imóvel'
+        verbose_name_plural = 'endereços dos imóveis'
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(latitude__isnull=True, longitude__isnull=True)
+                    | models.Q(
+                        latitude__isnull=False,
+                        longitude__isnull=False,
+                        latitude__range=(-90, 90),
+                        longitude__range=(-180, 180),
+                    )
+                ),
+                name='property_address_valid_coordinates',
+                violation_error_message='Informe latitude e longitude juntas e dentro dos limites válidos.',
+            ),
+        ]
+
+    def __str__(self):
+        locality = f'{self.city} - {self.state}'
+        return f'{self.street}, {self.number}, {locality}, {self.postal_code}, {self.country_code}'

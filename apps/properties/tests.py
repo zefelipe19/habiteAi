@@ -9,10 +9,12 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 from django.forms import modelform_factory
-from django.test import TestCase
+from django.test import Client, TestCase
+from django.urls import reverse
 from PIL import Image
 
-from .models import Property, PropertyImage
+from .models import Property, PropertyAddress, PropertyImage
+from .services import create_property
 
 
 class PropertyTests(TestCase):
@@ -140,3 +142,138 @@ class PropertyImageTests(TestCase):
         self.property_instance.delete()
 
         self.assertFalse(PropertyImage.objects.filter(pk=image.pk).exists())
+
+
+class PropertyAddressTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        owner = get_user_model().objects.create_user(username='proprietario')
+        cls.property_instance = Property.objects.create(
+            title='Apartamento',
+            description='Imóvel para locação.',
+            property_type=Property.Type.APARTMENT,
+            owner=owner,
+            max_guests=2,
+            bedrooms=1,
+            bathrooms=1,
+            beds=1,
+            area_m2=Decimal('45.00'),
+        )
+        cls.address_data = {
+            'property': cls.property_instance,
+            'street': 'Rua Exemplo',
+            'number': '12A',
+            'city': 'São Paulo',
+            'state': 'SP',
+            'postal_code': '01000-000',
+        }
+
+    def test_saves_address_before_and_after_geocoding(self):
+        address = PropertyAddress(**self.address_data)
+        address.full_clean()
+        address.save()
+        self.assertEqual(self.property_instance.address.pk, address.pk)
+        self.assertEqual(address.country_code, 'BR')
+        self.assertEqual(address.postal_code, '01000-000')
+        self.assertIsNone(address.latitude)
+        self.assertIsNone(address.longitude)
+
+        address.latitude = Decimal('0.000000')
+        address.longitude = Decimal('-40.123456')
+        address.full_clean()
+        address.save(update_fields=['latitude', 'longitude'])
+        address.refresh_from_db()
+        self.assertEqual(address.latitude, Decimal('0.000000'))
+        self.assertEqual(address.longitude, Decimal('-40.123456'))
+
+    def test_rejects_partial_and_out_of_range_coordinates(self):
+        for latitude, longitude in [
+            (0, None),
+            (None, 0),
+            (Decimal('-90.000001'), 0),
+            (0, Decimal('180.000001')),
+        ]:
+            with self.subTest(latitude=latitude, longitude=longitude):
+                address = PropertyAddress(**self.address_data, latitude=latitude, longitude=longitude)
+                with self.assertRaises(ValidationError):
+                    address.full_clean()
+                with self.assertRaises(IntegrityError), transaction.atomic():
+                    address.save()
+
+    def test_rejects_second_address_for_same_property(self):
+        PropertyAddress.objects.create(**self.address_data)
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            PropertyAddress.objects.create(**self.address_data)
+
+
+class PropertyCreationTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.owner = User.objects.create_user(username='proprietario')
+        cls.other_user = User.objects.create_user(username='outro')
+        cls.property_data = {
+            'title': 'Apartamento no Centro',
+            'description': 'Imóvel para locação.',
+            'property_type': Property.Type.APARTMENT,
+            'max_guests': 2,
+            'bedrooms': 1,
+            'bathrooms': 1,
+            'beds': 1,
+            'area_m2': Decimal('45.50'),
+            'is_furnished': True,
+        }
+
+    def test_creation_requires_login(self):
+        url = reverse('property_create')
+        login_url = reverse('account_login')
+
+        self.assertRedirects(self.client.get(url), f'{login_url}?next={url}')
+        self.assertRedirects(self.client.post(url, self.property_data), f'{login_url}?next={url}')
+        self.assertFalse(Property.objects.exists())
+
+    def test_logged_in_user_can_create_own_draft(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.owner)
+        url = reverse('property_create')
+        self.assertContains(client.get(reverse('index')), f'href="{url}">Anunciar imóvel')
+        self.assertContains(client.get(url), 'name="csrfmiddlewaretoken"')
+
+        response = client.post(
+            url,
+            {
+                **self.property_data,
+                'area_m2': '45,50',
+                'owner': self.other_user.pk,
+                'status': Property.Status.PUBLISHED,
+                'csrfmiddlewaretoken': client.cookies['csrftoken'].value,
+            },
+            follow=True,
+        )
+
+        self.assertRedirects(response, url)
+        self.assertContains(response, 'Imóvel cadastrado como rascunho.')
+        property_instance = Property.objects.get()
+        self.assertEqual(property_instance.owner, self.owner)
+        self.assertEqual(property_instance.status, Property.Status.DRAFT)
+        self.assertEqual(property_instance.area_m2, Decimal('45.50'))
+        self.assertTrue(property_instance.is_furnished)
+
+    def test_view_shows_errors_without_saving_invalid_property(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse('property_create'),
+            {**self.property_data, 'max_guests': 0},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].has_error('max_guests', 'min_value'))
+        self.assertFalse(Property.objects.exists())
+
+    def test_service_validates_input_without_an_http_request(self):
+        with self.assertRaises(ValidationError) as error:
+            create_property(owner=self.owner, **{**self.property_data, 'max_guests': 0})
+
+        self.assertIn('max_guests', error.exception.message_dict)
+        self.assertFalse(Property.objects.exists())
