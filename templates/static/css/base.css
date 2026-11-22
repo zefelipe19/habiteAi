@@ -1,0 +1,29 @@
+:root {
+    --bs-body-font-family: "Montserrat", system-ui, sans-serif;
+    --bs-body-font-weight: 400;
+    --bs-heading-color: var(--bs-primary-fg, var(--habiteai-primary));
+}
+
+body {
+    font-family: var(--bs-body-font-family);
+    font-weight: var(--bs-body-font-weight);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--bs-heading-color);
+    font-weight: var(--bs-body-font-weight);
+}
+
+.site-header .navbar {
+    --bs-navbar-brand-color: var(--habiteai-primary);
+    --bs-navbar-brand-hover-color: var(--habiteai-primary);
+    --bs-navbar-brand-font-weight: var(--bs-body-font-weight);
+    --bs-navbar-active-color: var(--habiteai-primary);
+}
+
+.site-header .nav-link[aria-current="page"] {
+    text-decoration: underline;
+    text-decoration-color: var(--habiteai-accent);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.35em;
+}

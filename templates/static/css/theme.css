@@ -1,0 +1,24 @@
+:root {
+    --habiteai-primary: #011b4c;
+    --habiteai-accent: #fb7007;
+
+    --bs-primary-base: var(--habiteai-primary);
+    --bs-primary-bg: var(--habiteai-primary);
+    --bs-primary-fg: light-dark(var(--habiteai-primary), color-mix(in srgb, var(--habiteai-primary) 30%, white));
+    --bs-primary-fg-emphasis: var(--bs-primary-fg);
+    --bs-primary-bg-subtle: color-mix(in srgb, var(--habiteai-primary) 10%, var(--bs-bg-body));
+    --bs-primary-bg-muted: color-mix(in srgb, var(--habiteai-primary) 20%, var(--bs-bg-body));
+    --bs-primary-border: color-mix(in srgb, var(--bs-primary-fg) 40%, var(--bs-bg-body));
+    --bs-primary-focus-ring: var(--bs-primary-fg);
+    --bs-primary-contrast: white;
+
+    --bs-accent-base: var(--habiteai-accent);
+    --bs-accent-bg: var(--habiteai-accent);
+    --bs-accent-fg: light-dark(color-mix(in srgb, var(--habiteai-accent) 60%, black), var(--habiteai-accent));
+    --bs-accent-fg-emphasis: var(--bs-accent-fg);
+    --bs-accent-bg-subtle: color-mix(in srgb, var(--habiteai-accent) 10%, var(--bs-bg-body));
+    --bs-accent-bg-muted: color-mix(in srgb, var(--habiteai-accent) 20%, var(--bs-bg-body));
+    --bs-accent-border: color-mix(in srgb, var(--bs-accent-fg) 50%, var(--bs-bg-body));
+    --bs-accent-focus-ring: var(--bs-accent-fg);
+    --bs-accent-contrast: var(--habiteai-primary);
+}

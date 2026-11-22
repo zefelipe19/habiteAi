@@ -1,0 +1,42 @@
+{% load static %}
+<header class="site-header">
+    <nav class="navbar md:navbar-expand bg-body border-bottom" data-bs-theme="light" aria-label="Navegação principal">
+        <div class="container">
+            <a class="navbar-brand d-inline-flex align-items-center gap-2" href="{% url 'index' %}">
+                <img src="{% static 'habiteai_icon.svg' %}" alt="" width="44" height="32">
+                HabiteAi
+            </a>
+            <button class="btn-icon navbar-toggler" type="button" data-bs-toggle="drawer" data-bs-target="#site-navigation" aria-controls="site-navigation" aria-expanded="false" aria-label="Abrir menu de navegação">
+                <span class="navbar-toggler-icon" aria-hidden="true"></span>
+            </button>
+            <dialog class="drawer drawer-end" id="site-navigation" tabindex="-1" aria-labelledby="site-navigation-title">
+                <div class="drawer-header">
+                    <h2 class="drawer-title" id="site-navigation-title">Menu</h2>
+                    <button class="btn-close" type="button" data-bs-dismiss="drawer" aria-label="Fechar menu"></button>
+                </div>
+                <div class="drawer-body">
+                    <ul class="navbar-nav ms-auto gap-2 md:align-items-center">
+                        <li class="nav-item">
+                            <a class="nav-link{% if request.resolver_match.url_name == 'index' %} active{% endif %}" href="{% url 'index' %}"{% if request.resolver_match.url_name == 'index' %} aria-current="page"{% endif %}>Início</a>
+                        </li>
+                        {% if user.is_authenticated %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'account_email' %}">Minha conta</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'account_logout' %}">Sair</a>
+                            </li>
+                        {% else %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'account_login' %}">Entrar</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="btn-solid theme-accent" href="{% url 'account_signup' %}">Criar conta</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </dialog>
+        </div>
+    </nav>
+</header>
