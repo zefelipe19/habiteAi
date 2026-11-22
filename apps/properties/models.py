@@ -72,13 +72,14 @@ class PropertyImage(models.Model):
         verbose_name='imóvel',
     )
     image = models.ImageField('imagem', upload_to='properties/images/', max_length=255)
+    title = models.CharField('título', max_length=100, blank=True, default='')
 
     class Meta:
         verbose_name = 'imagem do imóvel'
         verbose_name_plural = 'imagens dos imóveis'
 
     def __str__(self):
-        return str(self.image)
+        return self.title or str(self.image)
 
 
 class PropertyAddress(models.Model):
