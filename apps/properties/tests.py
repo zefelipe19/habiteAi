@@ -427,7 +427,7 @@ class PropertyCreationTests(TestCase):
         self.assertFalse(Property.objects.exists())
 
 
-class PropertyGalleryTests(TestCase):
+class PropertyManagementTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         User = get_user_model()
@@ -453,29 +453,76 @@ class PropertyGalleryTests(TestCase):
         )
         self.other_photo = PropertyImage.objects.create(property=self.other_property, image=png_upload('quarto.png'))
 
-    def test_gallery_lists_only_the_owners_properties_and_photos(self):
+    def test_owner_list_uses_home_cards_and_links_to_management(self):
         gallery_url = reverse('my_properties')
         self.assertRedirects(self.client.get(gallery_url), f'{reverse("account_login")}?next={gallery_url}')
         self.client.force_login(self.owner)
 
         response = self.client.get(gallery_url)
 
+        self.assertTemplateUsed(response, 'properties/_property_card.html')
         self.assertContains(response, self.own_property.title)
         self.assertContains(response, self.photo.image.url)
-        self.assertContains(response, '<p class="property-photo-title">Sala de estar</p>', html=True)
+        self.assertContains(response, reverse('property_manage', args=[self.own_property.pk]))
+        self.assertNotContains(response, 'name="status"')
+        self.assertNotContains(response, 'Remover foto')
         self.assertNotContains(response, self.other_property.title)
         self.assertNotContains(response, self.other_photo.image.url)
+
+    def test_management_shows_own_status_and_gallery(self):
+        self.client.force_login(self.owner)
+        url = reverse('property_manage', args=[self.own_property.pk])
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.context['status_form']['status'].value(), Property.Status.DRAFT)
+        self.assertContains(response, '<p class="property-photo-title">Sala de estar</p>', html=True)
+        self.assertContains(response, 'data-photo-viewer')
+        self.assertContains(response, reverse('property_image_delete', args=[self.photo.pk]))
+        self.assertNotContains(response, self.other_photo.image.url)
+
+    def test_owner_can_publish_and_hide_property_from_home(self):
+        self.client.force_login(self.owner)
+        url = reverse('property_manage', args=[self.own_property.pk])
+        home = reverse('index')
+        headers = {'HX-Request': 'true'}
+
+        self.assertNotContains(self.client.get(home, headers=headers), self.own_property.title)
+        for status, is_public in [(Property.Status.PUBLISHED, True), (Property.Status.INACTIVE, False)]:
+            with self.subTest(status=status):
+                response = self.client.post(url, {'status': status, 'owner': self.other_user.pk}, follow=True)
+                self.assertRedirects(response, url)
+                self.assertContains(response, 'Disponibilidade atualizada.')
+                self.own_property.refresh_from_db()
+                self.assertEqual(self.own_property.status, status)
+                self.assertEqual(self.own_property.owner, self.owner)
+                results = self.client.get(home, headers=headers)
+                self.assertEqual(self.own_property.title in results.content.decode(), is_public)
+
+    def test_management_rejects_other_owners_and_invalid_status(self):
+        url = reverse('property_manage', args=[self.own_property.pk])
+        self.assertRedirects(self.client.get(url), f'{reverse("account_login")}?next={url}')
+        self.client.force_login(self.other_user)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertEqual(self.client.post(url, {'status': Property.Status.PUBLISHED}).status_code, 404)
+
+        self.client.force_login(self.owner)
+        response = self.client.post(url, {'status': 'unknown'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['status_form'].has_error('status', 'invalid_choice'))
+        self.own_property.refresh_from_db()
+        self.assertEqual(self.own_property.status, Property.Status.DRAFT)
 
     def test_only_owner_can_delete_through_csrf_protected_post(self):
         client = Client(enforce_csrf_checks=True)
         client.force_login(self.owner)
-        gallery_url = reverse('my_properties')
+        manage_url = reverse('property_manage', args=[self.own_property.pk])
         own_url = reverse('property_image_delete', args=[self.photo.pk])
         other_url = reverse('property_image_delete', args=[self.other_photo.pk])
 
         self.assertEqual(client.get(own_url).status_code, 405)
         self.assertEqual(client.post(own_url).status_code, 403)
-        client.get(gallery_url)
+        client.get(manage_url)
         csrf = {'csrfmiddlewaretoken': client.cookies['csrftoken'].value}
         self.assertEqual(client.post(other_url, csrf).status_code, 404)
 
@@ -484,7 +531,7 @@ class PropertyGalleryTests(TestCase):
             response = client.post(own_url, csrf, follow=True)
             self.assertTrue(file_path.is_file())
 
-        self.assertRedirects(response, gallery_url)
+        self.assertRedirects(response, manage_url)
         self.assertContains(response, 'Foto removida do imóvel.')
         self.assertFalse(PropertyImage.objects.filter(pk=self.photo.pk).exists())
         self.assertTrue(PropertyImage.objects.filter(pk=self.other_photo.pk).exists())
@@ -500,5 +547,167 @@ class PropertyGalleryTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(reverse('property_image_delete', args=[self.photo.pk]))
 
-        self.assertRedirects(response, reverse('my_properties'))
+        self.assertRedirects(response, reverse('property_manage', args=[self.own_property.pk]))
         self.assertTrue((self.media_root / other_reference.image.name).is_file())
+
+
+class HomeSearchTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        owner = get_user_model().objects.create_user(username='anunciante')
+        shared_fields = {
+            'description': 'Imóvel para locação.',
+            'owner': owner,
+            'bedrooms': 1,
+            'bathrooms': 1,
+            'beds': 1,
+            'area_m2': Decimal('45.00'),
+        }
+        cls.house = Property.objects.create(
+            title='Casa com varanda', property_type=Property.Type.HOUSE,
+            status=Property.Status.PUBLISHED, max_guests=4, **shared_fields,
+        )
+        cls.studio = Property.objects.create(
+            title='Studio no Centro', property_type=Property.Type.STUDIO,
+            status=Property.Status.PUBLISHED, max_guests=2, **shared_fields,
+        )
+        cls.draft = Property.objects.create(
+            title='Rascunho privado', property_type=Property.Type.HOUSE,
+            status=Property.Status.DRAFT, max_guests=4, **shared_fields,
+        )
+        for property_instance in (cls.house, cls.studio, cls.draft):
+            PropertyAddress.objects.create(
+                property=property_instance, street='Rua Exemplo', number='12',
+                neighborhood='Centro', city='Fortaleza', state='CE', postal_code='60000-000',
+            )
+        PropertyImage.objects.create(property=cls.house, image='properties/images/varanda.png')
+        PropertyImage.objects.create(property=cls.studio, image='properties/images/studio.png')
+        PropertyImage.objects.create(property=cls.draft, image='properties/images/privada.png')
+
+    def test_home_shows_search_gallery_footer_and_only_published_properties(self):
+        response = self.client.get(reverse('index'))
+
+        self.assertContains(response, 'id="home-search"')
+        self.assertContains(response, 'hx-target="#property-results"')
+        self.assertContains(response, 'class="site-footer"')
+        self.assertContains(response, 'properties/images/varanda.png')
+        self.assertContains(response, 'properties/images/studio.png')
+        self.assertContains(response, 'x-data="homeCarousel"')
+        self.assertContains(response, reverse('property_detail', args=[self.house.pk]))
+        self.assertNotContains(response, 'Rascunho privado')
+        self.assertNotContains(response, 'properties/images/privada.png')
+
+    def test_public_detail_shows_photos_and_only_city_state_and_neighborhood(self):
+        address = self.house.address
+        address.street = 'Rua do endereço privado'
+        address.number = '123Q'
+        address.complement = 'Unidade interna'
+        address.latitude = Decimal('-23.550520')
+        address.longitude = Decimal('-46.633308')
+        address.save()
+
+        response = self.client.get(reverse('property_detail', args=[self.house.pk]))
+
+        self.assertContains(response, '<h1>Casa com varanda</h1>', html=True)
+        self.assertContains(response, '<dt>Cidade</dt><dd>Fortaleza</dd>')
+        self.assertContains(response, '<dt>Estado</dt><dd>CE</dd>')
+        self.assertContains(response, '<dt>Bairro</dt><dd>Centro</dd>')
+        self.assertContains(response, 'properties/images/varanda.png')
+        self.assertContains(response, 'data-photo-viewer')
+        for private_value in (
+            address.street, address.number, address.complement, address.postal_code,
+            str(address.latitude), str(address.longitude),
+        ):
+            with self.subTest(value=private_value):
+                self.assertNotContains(response, private_value)
+
+    def test_public_detail_shows_property_characteristics_and_description(self):
+        self.house.description = 'Casa com jardim.\n\nSala <ampla> e ventilada.'
+        self.house.bedrooms = 0
+        self.house.bathrooms = 2
+        self.house.beds = 3
+        self.house.area_m2 = Decimal('45.50')
+        self.house.is_furnished = True
+        self.house.save()
+
+        response = self.client.get(reverse('property_detail', args=[self.house.pk]))
+
+        self.assertContains(response, '<h2 id="information-title">Sobre o imóvel</h2>', html=True)
+        for label, value in [
+            ('Tipo de imóvel', 'Casa'), ('Capacidade', '4 hóspedes'), ('Quartos', '0'),
+            ('Banheiros', '2'), ('Camas', '3'), ('Área', '45,50 m²'), ('Mobília', 'Mobiliado'),
+        ]:
+            with self.subTest(label=label):
+                self.assertContains(response, f'<dt>{label}</dt><dd>{value}</dd>')
+        self.assertContains(response, '<p>Casa com jardim.</p>', html=True)
+        self.assertContains(response, '<p>Sala &lt;ampla&gt; e ventilada.</p>')
+
+    def test_public_detail_is_unavailable_for_draft_or_inactive_property(self):
+        self.studio.status = Property.Status.INACTIVE
+        self.studio.save(update_fields=['status'])
+        for property_instance in (self.draft, self.studio):
+            with self.subTest(status=property_instance.status):
+                response = self.client.get(reverse('property_detail', args=[property_instance.pk]))
+                self.assertEqual(response.status_code, 404)
+
+    def test_public_detail_handles_legacy_property_without_address_or_photos(self):
+        self.house.address.delete()
+        self.house.images.all().delete()
+
+        response = self.client.get(reverse('property_detail', args=[self.house.pk]))
+
+        self.assertContains(response, 'Localização ainda não informada.')
+        self.assertContains(response, 'Este imóvel está sem fotos.')
+        self.assertNotContains(response, 'data-photo-viewer')
+
+    def test_search_combines_location_type_and_capacity_for_htmx(self):
+        response = self.client.get(
+            reverse('index'), {'q': 'Fortaleza', 'property_type': 'house', 'guests': 4},
+            headers={'HX-Request': 'true'},
+        )
+
+        self.assertContains(response, 'id="property-results"')
+        self.assertContains(response, 'Casa com varanda')
+        self.assertNotContains(response, 'Studio no Centro')
+        self.assertNotContains(response, 'Rascunho privado')
+        self.assertNotContains(response, 'id="home-search"')
+        self.assertIn('HX-Request', response['Vary'])
+
+    def test_search_without_htmx_and_history_restore_render_full_page(self):
+        headers_to_test = (
+            {},
+            {'HX-Request': 'true', 'HX-History-Restore-Request': 'true'},
+        )
+        for headers in headers_to_test:
+            with self.subTest(headers=headers):
+                response = self.client.get(
+                    reverse('index'), {'q': 'Centro', 'guests': 3}, headers=headers,
+                )
+                self.assertContains(response, 'id="home-search"')
+                self.assertEqual(list(response.context['page_obj']), [self.house])
+
+    def test_invalid_and_unmatched_filters_have_distinct_messages(self):
+        invalid = self.client.get(reverse('index'), {'guests': 0}, headers={'HX-Request': 'true'})
+        self.assertContains(invalid, 'Confira os filtros')
+        self.assertNotContains(invalid, 'Casa com varanda')
+
+        unmatched = self.client.get(reverse('index'), {'q': 'Recife'}, headers={'HX-Request': 'true'})
+        self.assertContains(unmatched, 'Nenhum imóvel encontrado')
+        self.assertNotContains(unmatched, 'Casa com varanda')
+
+    def test_pagination_preserves_filters(self):
+        Property.objects.bulk_create([
+            Property(
+                title=f'Casa {number}', description='Imóvel para locação.', owner=self.house.owner,
+                property_type=Property.Type.HOUSE, status=Property.Status.PUBLISHED, max_guests=4,
+                bedrooms=1, bathrooms=1, beds=1, area_m2=Decimal('45.00'),
+            )
+            for number in range(12)
+        ])
+        filters = {'property_type': 'house', 'guests': 4}
+        response = self.client.get(reverse('index'), filters, headers={'HX-Request': 'true'})
+        self.assertContains(response, '?property_type=house&amp;guests=4&amp;page=2#imoveis')
+        self.assertEqual(len(response.context['page_obj']), 12)
+
+        second_page = self.client.get(reverse('index'), {**filters, 'page': 2}, headers={'HX-Request': 'true'})
+        self.assertEqual(list(second_page.context['page_obj']), [self.house])
