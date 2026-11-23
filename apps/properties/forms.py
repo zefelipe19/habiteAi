@@ -44,17 +44,7 @@ class PropertyForm(BootstrapModelForm):
 
     class Meta:
         model = Property
-        fields = (
-            'title',
-            'description',
-            'property_type',
-            'max_guests',
-            'bedrooms',
-            'bathrooms',
-            'beds',
-            'area_m2',
-            'is_furnished',
-        )
+        fields = Property.INFORMATION_FIELDS
         localized_fields = ('area_m2',)
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
@@ -136,3 +126,15 @@ class PropertyImagesForm(forms.Form):
         except ValidationError as error:
             self.add_error('images', error)
         return cleaned_data
+
+
+class PropertyImageEditForm(PropertyImagesForm):
+    removed_images = forms.ModelMultipleChoiceField(
+        queryset=PropertyImage.objects.none(),
+        label='Fotos para remover',
+        required=False,
+    )
+
+    def __init__(self, *args, property_instance, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['removed_images'].queryset = PropertyImage.objects.filter(property=property_instance)
