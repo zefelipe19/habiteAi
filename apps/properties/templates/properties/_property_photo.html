@@ -1,0 +1,11 @@
+{% if photo.image %}
+    <a class="property-photo-thumbnail" href="{{ photo.image.url }}" target="_blank" rel="noopener"
+       data-photo-preview aria-haspopup="dialog"
+       aria-label="Ampliar foto: {% if photo.title %}{{ photo.title }}{% else %}Foto {{ number }} de {{ property.title }}{% endif %}">
+        <img src="{{ photo.image.url }}" alt="{% if photo.title %}{{ photo.title }}{% else %}Foto {{ number }} de {{ property.title }}{% endif %}"
+             {% if featured %}fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async">
+    </a>
+    {% if photo.title %}
+        <p class="property-photo-title">{{ photo.title }}</p>
+    {% endif %}
+{% endif %}

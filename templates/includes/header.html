@@ -21,7 +21,13 @@
                         </li>
                         {% if user.is_authenticated %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{% url 'account_email' %}">Minha conta</a>
+                                <a class="nav-link{% if request.resolver_match.url_name == 'property_create' %} active{% endif %}" href="{% url 'property_create' %}"{% if request.resolver_match.url_name == 'property_create' %} aria-current="page"{% endif %}>Anunciar imóvel</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link{% if request.resolver_match.url_name == 'my_properties' or request.resolver_match.url_name == 'property_manage' %} active{% endif %}" href="{% url 'my_properties' %}"{% if request.resolver_match.url_name == 'my_properties' %} aria-current="page"{% endif %}>Meus imóveis</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link{% if request.resolver_match.view_name == 'profile:settings' %} active{% endif %}" href="{% url 'profile:settings' %}"{% if request.resolver_match.view_name == 'profile:settings' %} aria-current="page"{% endif %}>Minha conta</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="{% url 'account_logout' %}">Sair</a>

@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'properties/property-form.css' %}">
+    <link rel="stylesheet" href="{% static 'properties/property-detail.css' %}">
+{% endblock extra_head %}
+
+{% block content %}
+    <div class="property-detail-page">
+        <a class="d-inline-block mb-3" href="{% url 'index' %}#imoveis">Voltar para a busca</a>
+        <h1>{{ property.title }}</h1>
+        <div class="property-detail-layout">
+            <section class="property-detail-location" aria-labelledby="location-title">
+                <h2 id="location-title">Localização</h2>
+                {% with address=property.address %}
+                    {% if address %}
+                        <dl>
+                            <div><dt>Cidade</dt><dd>{{ address.city }}</dd></div>
+                            <div><dt>Estado</dt><dd>{{ address.state }}</dd></div>
+                            {% if address.neighborhood %}
+                                <div><dt>Bairro</dt><dd>{{ address.neighborhood }}</dd></div>
+                            {% endif %}
+                        </dl>
+                    {% else %}
+                        <p class="mb-0">Localização ainda não informada.</p>
+                    {% endif %}
+                {% endwith %}
+            </section>
+
+            <section class="property-detail-photos" aria-labelledby="photos-title">
+                <h2 id="photos-title">Fotos</h2>
+                {% if photos %}
+                    <ul class="property-photo-grid property-detail-gallery">
+                        {% for photo in photos %}
+                            <li>
+                                {% include 'properties/_property_photo.html' with photo=photo property=property number=forloop.counter featured=forloop.first only %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>Este imóvel está sem fotos.</p>
+                {% endif %}
+            </section>
+        </div>
+
+        <section class="property-detail-information" aria-labelledby="information-title">
+            <h2 id="information-title">Sobre o imóvel</h2>
+            <dl class="property-detail-facts">
+                <div><dt>Tipo de imóvel</dt><dd>{{ property.get_property_type_display }}</dd></div>
+                <div><dt>Capacidade</dt><dd>{{ property.max_guests }} hóspede{{ property.max_guests|pluralize }}</dd></div>
+                <div><dt>Quartos</dt><dd>{{ property.bedrooms }}</dd></div>
+                <div><dt>Banheiros</dt><dd>{{ property.bathrooms }}</dd></div>
+                <div><dt>Camas</dt><dd>{{ property.beds }}</dd></div>
+                <div><dt>Área</dt><dd>{{ property.area_m2 }} m²</dd></div>
+                <div><dt>Mobília</dt><dd>{{ property.is_furnished|yesno:"Mobiliado,Sem mobília" }}</dd></div>
+            </dl>
+            {% if property.description %}
+                <div class="property-detail-description">
+                    <h3>Descrição</h3>
+                    {{ property.description|linebreaks }}
+                </div>
+            {% endif %}
+        </section>
+    </div>
+    {% if photos %}
+        {% include 'properties/_photo_viewer.html' %}
+    {% endif %}
+{% endblock content %}

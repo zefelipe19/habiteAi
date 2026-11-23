@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block seo %}
+    <title>Gerenciar {{ property.title }} | HabiteAi</title>
+{% endblock seo %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'properties/property-form.css' %}">
+    <link rel="stylesheet" href="{% static 'properties/property-editor.css' %}">
+{% endblock extra_head %}
+
+{% block content %}
+    <div class="property-form-page">
+        <a class="d-inline-block mb-3" href="{% url 'my_properties' %}">Voltar para Meus imóveis</a>
+        <h1>{{ property.title }}</h1>
+        {% for message in messages %}
+            <p class="alert theme-success" role="status">{{ message }}</p>
+        {% endfor %}
+
+        <div data-property-editor data-draft-key="habiteai:property-edit:{{ request.user.pk }}:{{ property.pk }}">
+            <section class="property-form mb-3" aria-labelledby="property-information">
+                <h2 id="property-information">Informações do imóvel</h2>
+                <button class="btn-solid theme-accent" type="button" data-editor-open aria-haspopup="dialog" disabled>
+                    Editar informações
+                </button>
+                <noscript><p class="mt-2 mb-0">Ative o JavaScript para editar as informações do imóvel.</p></noscript>
+            </section>
+            {% include 'properties/_property_editor.html' %}
+        </div>
+
+        <section class="property-form mb-3" aria-labelledby="property-availability">
+            <h2 id="property-availability">Disponibilidade</h2>
+            <form method="post" action="{% url 'property_manage' property.pk %}">
+                {% csrf_token %}
+                {{ status_form.status.as_field_group }}
+                <button class="btn-solid theme-accent mt-3" type="submit">Salvar status</button>
+            </form>
+        </section>
+
+        <section class="property-form" aria-labelledby="property-photos">
+            <h2 id="property-photos">Fotos</h2>
+            {% with photos=property.images.all %}
+                {% if photos %}
+                    <ul class="property-photo-grid mb-0">
+                        {% for photo in photos %}
+                            <li>
+                                {% include 'properties/_property_photo.html' with photo=photo property=property number=forloop.counter only %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="mb-0">Este imóvel ainda está sem fotos.</p>
+                {% endif %}
+            {% endwith %}
+        </section>
+    </div>
+    {% include 'properties/_photo_viewer.html' %}
+{% endblock content %}
+
+{% block extra_body %}
+    {{ block.super }}
+    <script defer src="{% static 'properties/property-editor.js' %}"></script>
+{% endblock extra_body %}

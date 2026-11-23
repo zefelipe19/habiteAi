@@ -1,0 +1,115 @@
+.property-editor {
+    width: min(48rem, calc(100% - 1rem));
+    max-width: none;
+    max-height: min(52rem, calc(100dvh - 1rem));
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+    background: var(--bs-bg-body);
+    color: var(--bs-fg-body);
+}
+
+.property-editor[open] {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+.property-editor::backdrop {
+    background: rgb(1 27 76 / 55%);
+}
+
+:root:has(.property-editor[open]) {
+    overflow: hidden;
+}
+
+.property-editor-header,
+.property-editor-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem clamp(1rem, 3vw, 1.5rem);
+}
+
+.property-editor-header {
+    justify-content: space-between;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.property-editor-header h2 {
+    margin: 0;
+    font-size: clamp(1.125rem, 3vw, 1.5rem);
+}
+
+.property-editor form {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+}
+
+.property-editor-body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.property-editor-fields {
+    display: grid;
+    gap: 1.5rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.property-editor-fields h3,
+.property-editor-fields summary {
+    font-size: 1.125rem;
+}
+
+.property-editor-fields summary {
+    cursor: pointer;
+}
+
+.property-editor-saved-photos li:has(input:checked) .property-photo-thumbnail {
+    opacity: 0.45;
+}
+
+.property-editor [data-editor-new-photos][hidden] {
+    display: none;
+}
+
+.property-editor-footer {
+    justify-content: flex-end;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.property-editor-notice {
+    position: fixed;
+    inset-inline-end: max(0.75rem, env(safe-area-inset-right));
+    inset-block-end: max(0.75rem, env(safe-area-inset-bottom));
+    z-index: 10;
+    width: min(26rem, calc(100% - 1.5rem));
+    padding: 1rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.875rem;
+    background: var(--bs-bg-body);
+    color: var(--bs-fg-body);
+    box-shadow: 0 0.5rem 2rem rgb(1 27 76 / 18%);
+}
+
+.property-editor-notice p {
+    margin-bottom: 0.75rem;
+}
+
+.property-editor-notice-warning {
+    font-size: 0.875rem;
+}
+
+@media (max-width: 575px) {
+    .property-editor-footer button {
+        width: 100%;
+        justify-content: center;
+    }
+}

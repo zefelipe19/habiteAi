@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block seo %}
+    <title>Meus imóveis | HabiteAi</title>
+{% endblock seo %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'properties/home.css' %}">
+{% endblock extra_head %}
+
+{% block content %}
+    <div class="home-container home-listings">
+        <h1 class="mb-4">Meus imóveis</h1>
+        {% if properties %}
+            <div class="home-property-grid">
+                {% for property in properties %}
+                    {% url 'property_manage' property.pk as manage_url %}
+                    {% include 'properties/_property_card.html' with property=property manage_url=manage_url only %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>Você ainda não cadastrou imóveis.</p>
+            <a class="btn-solid theme-accent" href="{% url 'property_create' %}">Anunciar imóvel</a>
+        {% endif %}
+    </div>
+{% endblock content %}

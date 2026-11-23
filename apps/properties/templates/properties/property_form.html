@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block seo %}
+    <title>Anunciar imóvel | HabiteAi</title>
+{% endblock seo %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'properties/property-form.css' %}">
+{% endblock extra_head %}
+
+{% block content %}
+    <div class="property-form-page">
+        <h1>Anunciar imóvel</h1>
+        {% for message in messages %}
+            <div class="alert {% if message.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}theme-success{% elif message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}theme-danger{% else %}theme-primary{% endif %}" role="status">{{ message }}</div>
+        {% endfor %}
+
+        <form class="property-form" method="post" enctype="multipart/form-data" action="{% url 'property_create' %}"
+              x-data="propertyForm" @submit="submit($event)">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <div class="alert theme-danger" role="alert">{{ form.non_field_errors }}</div>
+            {% endif %}
+            {% if reselect_images %}
+                <div class="alert theme-primary" role="status">Selecione as fotos novamente antes de salvar.</div>
+            {% endif %}
+
+            <div class="property-form-progress" x-cloak>
+                <p role="status" x-text="progressLabel"></p>
+                <progress aria-label="Progresso do cadastro" :value="step" :max="stepCount"></progress>
+            </div>
+
+            <fieldset class="property-form-step" data-property-step="1" x-show="step === 1"
+                      x-transition:enter="property-step-enter">
+                <legend tabindex="-1">Dados do imóvel</legend>
+                <div class="property-form-fields">
+                    <div>{{ form.title.as_field_group }}</div>
+                    <div>{{ form.property_type.as_field_group }}</div>
+                    <div>{{ form.description.as_field_group }}</div>
+                </div>
+            </fieldset>
+
+            <fieldset class="property-form-step" data-property-step="2" x-show="step === 2"
+                      x-transition:enter="property-step-enter">
+                <legend tabindex="-1">Capacidade</legend>
+                <div class="property-form-fields property-form-fields--columns">
+                    <div>{{ form.max_guests.as_field_group }}</div>
+                    <div>{{ form.bedrooms.as_field_group }}</div>
+                    <div>{{ form.bathrooms.as_field_group }}</div>
+                    <div>{{ form.beds.as_field_group }}</div>
+                </div>
+            </fieldset>
+
+            <fieldset class="property-form-step" data-property-step="3" x-show="step === 3"
+                      x-transition:enter="property-step-enter">
+                <legend tabindex="-1">Área e mobília</legend>
+                <div class="property-form-fields">
+                    <div>{{ form.area_m2.as_field_group }}</div>
+                    <div>
+                        <div class="d-flex gap-2 align-items-center">
+                            {{ form.is_furnished }}
+                            {{ form.is_furnished.label_tag }}
+                        </div>
+                        {{ form.is_furnished.errors }}
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset class="property-form-step" data-property-step="4" x-show="step === 4"
+                      x-transition:enter="property-step-enter">
+                <legend tabindex="-1">Endereço</legend>
+                {% if address_form.non_field_errors %}
+                    <div class="alert theme-danger" role="alert" data-step-error>{{ address_form.non_field_errors }}</div>
+                {% endif %}
+                <div class="property-form-fields property-form-fields--columns">
+                    <div>{{ address_form.postal_code.as_field_group }}</div>
+                    <div>{{ address_form.country_code.as_field_group }}</div>
+                    <div class="property-form-field--full">{{ address_form.street.as_field_group }}</div>
+                    <div>{{ address_form.number.as_field_group }}</div>
+                    <div>{{ address_form.complement.as_field_group }}</div>
+                    <div>{{ address_form.neighborhood.as_field_group }}</div>
+                    <div>{{ address_form.city.as_field_group }}</div>
+                    <div>{{ address_form.state.as_field_group }}</div>
+                </div>
+            </fieldset>
+
+            <fieldset class="property-form-step" data-property-step="5" x-show="step === 5"
+                      x-transition:enter="property-step-enter">
+                <legend tabindex="-1">Fotos</legend>
+                <div x-ref="photoPicker" @change="addPhotos($event.target)">
+                    {{ images_form.images.as_field_group }}
+                </div>
+                <ul class="property-photo-grid mt-3" x-cloak x-show="photos.length" aria-label="Fotos selecionadas">
+                    <template x-for="(photo, index) in photos" :key="photo.url">
+                        <li>
+                            <button class="property-photo-thumbnail" type="button" data-photo-preview
+                                    aria-haspopup="dialog" :aria-label="'Ampliar foto: ' + (photo.title || photo.file.name)"
+                                    :data-photo-description="photo.title || photo.file.name">
+                                <img :src="photo.url" :alt="photo.file.name" decoding="async">
+                            </button>
+                            <div class="mb-2">
+                                <label class="form-label" :for="'photo-title-' + index">Título da foto (opcional)</label>
+                                <input class="form-control" type="text" name="image_titles"
+                                       :id="'photo-title-' + index" x-model="photo.title"
+                                       maxlength="{{ images_form.title_max_length }}" placeholder="Ex.: Sala">
+                            </div>
+                            <button class="btn-outline theme-danger" type="button" @click="removePhoto(index)"
+                                    :aria-label="'Remover ' + photo.file.name">
+                                Remover
+                            </button>
+                        </li>
+                    </template>
+                </ul>
+            </fieldset>
+
+            <div class="property-form-actions">
+                <a class="btn-outline theme-primary" href="{% url 'index' %}" x-show="step === 1">Voltar ao início</a>
+                <button class="btn-outline theme-primary" type="button" x-cloak x-show="step > 1" @click="back()">
+                    Voltar
+                </button>
+                <button class="btn-solid theme-accent" type="submit" x-text="submitLabel">Salvar rascunho</button>
+            </div>
+        </form>
+    </div>
+    {% include 'properties/_photo_viewer.html' %}
+{% endblock content %}
+
+{% block extra_body %}
+    {{ block.super }}
+    <script defer src="{% static 'properties/property-form.js' %}"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.4/dist/cdn.min.js"
+            integrity="sha384-5/joNqFnRyVWzXp99bHot6RHG+EksGp+USSgZwPar7T9SD9PKKER37n/8bXBAZGd"
+            crossorigin="anonymous"></script>
+{% endblock extra_body %}

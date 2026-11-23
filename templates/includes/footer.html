@@ -1,0 +1,28 @@
+<footer class="site-footer">
+    <div class="site-footer-inner">
+        <div>
+            <a class="site-footer-brand" href="{% url 'index' %}">HabiteAi</a>
+            <p>Imóveis para alugar por temporada ou por mês.</p>
+        </div>
+        <nav aria-label="Explorar no rodapé">
+            <h2>Explorar</h2>
+            <ul>
+                <li><a href="{% url 'index' %}">Início</a></li>
+                <li><a href="{% url 'index' %}#imoveis">Buscar imóveis</a></li>
+                <li><a href="{% url 'property_create' %}">Anunciar imóvel</a></li>
+            </ul>
+        </nav>
+        <nav aria-label="Conta no rodapé">
+            <h2>Conta</h2>
+            <ul>
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'my_properties' %}">Meus imóveis</a></li>
+                    <li><a href="{% url 'profile:settings' %}">Minha conta</a></li>
+                {% else %}
+                    <li><a href="{% url 'account_login' %}">Entrar</a></li>
+                    <li><a href="{% url 'account_signup' %}">Criar conta</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</footer>

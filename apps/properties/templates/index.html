@@ -1,5 +1,61 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <meta name="htmx-config" content='{"historyRestoreAsHxRequest":false}'>
+    <link rel="stylesheet" href="{% static 'properties/home.css' %}">
+{% endblock extra_head %}
 
 {% block content %}
-    <h1>HabiteAi</h1>
+    <div hx-history="false">
+        <section class="home-hero" aria-labelledby="home-title">
+            <div class="home-container home-hero-inner">
+                <div class="home-intro">
+                    <h1 id="home-title">Encontre seu próximo imóvel</h1>
+                    <p>Alugue por temporada ou por mês.</p>
+                    <form id="home-search" class="home-search" role="search" aria-label="Buscar imóveis"
+                          method="get" action="{% url 'index' %}#imoveis"
+                          hx-get="{% url 'index' %}" hx-target="#property-results"
+                          hx-swap="outerHTML show:#imoveis:top" hx-push-url="true" hx-sync="this:replace">
+                        <div class="home-search-query">
+                            {{ search_form.q.label_tag }}
+                            {{ search_form.q }}
+                        </div>
+                        <div>
+                            {{ search_form.property_type.label_tag }}
+                            {{ search_form.property_type }}
+                        </div>
+                        <div>
+                            {{ search_form.guests.label_tag }}
+                            {{ search_form.guests }}
+                        </div>
+                        <button class="btn-solid theme-accent" type="submit">Buscar imóveis</button>
+                        <p class="home-search-status" role="status">Buscando imóveis…</p>
+                    </form>
+                </div>
+                {% include 'properties/_home_showcase.html' %}
+            </div>
+        </section>
+
+        <section id="imoveis" class="home-container home-listings" aria-labelledby="listings-title">
+            <h2 id="listings-title">Imóveis disponíveis</h2>
+            <div aria-live="polite">
+                {% include 'properties/_search_results.html' %}
+            </div>
+        </section>
+    </div>
 {% endblock content %}
+
+{% block extra_body %}
+    {{ block.super }}
+    <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js"
+            integrity="sha384-2OatzQy1H+Zd/IIrjr1TcuDGqLXeHhbooAyJY1KdQMKnr4LZ22k31GBLdYKHmVjg"
+            crossorigin="anonymous"></script>
+    {% if featured_photos|length > 1 %}
+        <script defer src="{% static 'properties/home-carousel.js' %}"></script>
+        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.17.4/dist/cdn.min.js"
+                integrity="sha384-5/joNqFnRyVWzXp99bHot6RHG+EksGp+USSgZwPar7T9SD9PKKER37n/8bXBAZGd"
+                crossorigin="anonymous"></script>
+    {% endif %}
+{% endblock extra_body %}

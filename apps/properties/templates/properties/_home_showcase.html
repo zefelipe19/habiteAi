@@ -1,0 +1,32 @@
+{% load static %}
+{% if featured_photos %}
+    <section class="home-showcase" aria-label="Fotos de imóveis anunciados"
+             {% if featured_photos|length > 1 %}
+                 x-data="homeCarousel" @pointerenter="hovering = $event.pointerType === 'mouse'"
+                 @pointerleave="hovering = false" @focusin="if ($event.target.matches(':focus-visible')) playing = false"
+             {% endif %}>
+        <div class="home-showcase-media">
+            {% for photo in featured_photos %}
+                <figure data-featured-slide x-show="active === {{ forloop.counter0 }}">
+                    <img src="{{ photo.image.url }}" alt="{{ photo.title|default:photo.property.title }}"
+                         {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async">
+                    <figcaption>{{ photo.property.title }}</figcaption>
+                </figure>
+            {% endfor %}
+        </div>
+        {% if featured_photos|length > 1 %}
+            <div class="home-carousel-actions" x-cloak>
+                <button class="btn-outline theme-primary" type="button" @click="move(-1)">Anterior</button>
+                <button class="btn-outline theme-primary" type="button" @click="playing = !playing"
+                        :aria-label="playing ? 'Pausar carrossel' : 'Reproduzir carrossel'"
+                        x-text="playing ? 'Pausar' : 'Reproduzir'">Pausar</button>
+                <button class="btn-outline theme-primary" type="button" @click="move(1)">Próxima</button>
+            </div>
+        {% endif %}
+    </section>
+{% else %}
+    <figure class="home-showcase-media home-showcase-illustration">
+        <img src="{% static 'properties/hero-house.webp' %}" alt="Casa com varanda e jardim" fetchpriority="high" decoding="async">
+        <figcaption>Imagem ilustrativa</figcaption>
+    </figure>
+{% endif %}

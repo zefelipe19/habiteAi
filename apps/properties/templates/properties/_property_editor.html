@@ -1,0 +1,80 @@
+<dialog class="property-editor" aria-labelledby="property-editor-title" data-editor-dialog>
+    <header class="property-editor-header">
+        <h2 id="property-editor-title">Editar informações</h2>
+        <button class="btn-outline theme-primary" type="button" data-editor-close autofocus>Fechar</button>
+    </header>
+    <form method="post" enctype="multipart/form-data" action="{% url 'property_edit' property.pk %}" data-editor-form>
+        {% csrf_token %}
+        <div class="property-editor-body">
+            <div class="alert theme-danger" data-editor-errors role="alert" tabindex="-1" hidden></div>
+            <p class="alert theme-warning" data-editor-storage-warning role="status" hidden></p>
+            <fieldset class="property-editor-fields" data-editor-fieldset>
+                <section aria-labelledby="editor-primary-title" data-editor-details>
+                    <h3 id="editor-primary-title">Dados principais</h3>
+                    <div class="property-form-fields">
+                        <div>{{ edit_form.title.as_field_group }}</div>
+                        <div>{{ edit_form.description.as_field_group }}</div>
+                        <div>{{ edit_form.max_guests.as_field_group }}</div>
+                    </div>
+                </section>
+
+                <details data-editor-details>
+                    <summary>Características do imóvel</summary>
+                    <div class="property-form-fields property-form-fields--columns mt-3">
+                        <div>{{ edit_form.property_type.as_field_group }}</div>
+                        <div>{{ edit_form.area_m2.as_field_group }}</div>
+                        <div>{{ edit_form.bedrooms.as_field_group }}</div>
+                        <div>{{ edit_form.bathrooms.as_field_group }}</div>
+                        <div>{{ edit_form.beds.as_field_group }}</div>
+                        <div class="d-flex gap-2 align-items-center">
+                            {{ edit_form.is_furnished }} {{ edit_form.is_furnished.label_tag }}
+                        </div>
+                    </div>
+                </details>
+
+                <section aria-labelledby="editor-photos-title">
+                    <h3 id="editor-photos-title">Fotos</h3>
+                    {% if property.images.all %}
+                        <ul class="property-photo-grid property-editor-saved-photos">
+                            {% for photo in property.images.all %}
+                                <li>
+                                    {% include 'properties/_property_photo.html' with photo=photo property=property number=forloop.counter only %}
+                                    <label>
+                                        <input class="check" type="checkbox" name="removed_images" value="{{ photo.pk }}">
+                                        Remover foto {{ forloop.counter }} ao salvar
+                                    </label>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    <label class="form-label" for="{{ edit_images_form.images.id_for_label }}">Adicionar fotos</label>
+                    {{ edit_images_form.images }}
+                    <ul class="property-photo-grid mt-3" data-editor-new-photos aria-label="Novas fotos" hidden></ul>
+                    <template data-editor-photo-template>
+                        <li>
+                            <button class="property-photo-thumbnail" type="button" data-photo-preview aria-haspopup="dialog">
+                                <img alt="" decoding="async">
+                            </button>
+                            <label class="form-label" data-editor-photo-label>Título da foto (opcional)</label>
+                            <input class="form-control mb-2" type="text" maxlength="{{ edit_images_form.title_max_length }}"
+                                   placeholder="Ex.: Sala" data-editor-photo-title>
+                            <button class="btn-outline theme-danger" type="button" data-editor-remove-photo>Remover</button>
+                        </li>
+                    </template>
+                </section>
+            </fieldset>
+        </div>
+        <div class="property-editor-footer">
+            <button class="btn-solid theme-accent" type="submit" data-editor-submit>Salvar alterações</button>
+        </div>
+    </form>
+</dialog>
+
+<aside class="property-editor-notice" data-editor-notice aria-label="Rascunho da edição" hidden>
+    <p role="status">Informações não salvas</p>
+    <p class="property-editor-notice-warning" data-editor-storage-warning hidden></p>
+    <div class="d-flex flex-wrap gap-2">
+        <button class="btn-solid theme-accent" type="button" data-editor-open disabled>Continuar edição</button>
+        <button class="btn-outline theme-primary" type="button" data-editor-discard>Descartar alterações</button>
+    </div>
+</aside>

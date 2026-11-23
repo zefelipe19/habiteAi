@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block seo %}
+    <title>Minha conta | HabiteAi</title>
+{% endblock seo %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'profile/settings.css' %}">
+{% endblock extra_head %}
+
+{% block content %}
+    <div class="profile-page">
+        <h1>Minha conta</h1>
+        {% for message in messages %}
+            <p class="alert {% if message.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}theme-success{% else %}theme-primary{% endif %}" role="status">{{ message }}</p>
+        {% endfor %}
+
+        <div class="profile-layout">
+            <section class="profile-card" aria-labelledby="profile-title">
+                <div class="profile-identity">
+                    {% if current_avatar %}
+                        <img class="profile-avatar" src="{{ current_avatar.url }}" alt="Sua foto de perfil" width="76" height="76">
+                    {% else %}
+                        <span class="profile-avatar" aria-hidden="true">{{ user.get_username|first|upper }}</span>
+                    {% endif %}
+                    <div>
+                        <h2 id="profile-title">Perfil</h2>
+                        <p>{{ user.get_username }}</p>
+                    </div>
+                </div>
+                <form class="profile-form" method="post" enctype="multipart/form-data" action="{% url 'profile:settings' %}">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert theme-danger" role="alert">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    <div>{{ form.display_name.as_field_group }}</div>
+                    <div>{{ form.phone.as_field_group }}</div>
+                    <div>{{ form.avatar.as_field_group }}</div>
+                    <button class="btn-solid theme-accent" type="submit">Salvar perfil</button>
+                </form>
+            </section>
+
+            <section class="profile-card profile-security" aria-labelledby="security-title">
+                <h2 id="security-title">Acesso à conta</h2>
+                <dl>
+                    <dt>E-mail</dt>
+                    <dd>{{ user.email|default:"Nenhum e-mail cadastrado" }}</dd>
+                </dl>
+                <ul>
+                    <li><a href="{% url 'account_email' %}">Gerenciar e-mail</a></li>
+                    <li><a href="{% url 'account_change_password' %}">Alterar senha</a></li>
+                </ul>
+            </section>
+        </div>
+    </div>
+{% endblock content %}

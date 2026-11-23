@@ -1,0 +1,33 @@
+<div id="property-results">
+    {% if search_form.errors %}
+        <div class="alert theme-danger" role="alert">
+            <p>Confira os filtros e tente novamente.</p>
+            {{ search_form.errors }}
+        </div>
+    {% elif page_obj.paginator.count %}
+        <p class="home-results-count">
+            {% if page_obj.paginator.count == 1 %}1 imóvel encontrado{% else %}{{ page_obj.paginator.count }} imóveis encontrados{% endif %}
+        </p>
+        <div class="home-property-grid">
+            {% for property in page_obj %}
+                {% include 'properties/_property_card.html' with property=property only %}
+            {% endfor %}
+        </div>
+        {% if page_obj.has_other_pages %}
+            <nav class="home-pagination" aria-label="Páginas de imóveis" hx-boost="true"
+                 hx-target="#property-results" hx-swap="outerHTML show:#imoveis:top" hx-push-url="true" hx-sync="#home-search:replace">
+                {% if page_obj.has_previous %}
+                    <a class="btn-outline theme-primary" href="{% querystring page=page_obj.previous_page_number %}#imoveis">Anterior</a>
+                {% endif %}
+                <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a class="btn-outline theme-primary" href="{% querystring page=page_obj.next_page_number %}#imoveis">Próxima</a>
+                {% endif %}
+            </nav>
+        {% endif %}
+    {% elif has_filters %}
+        <p class="home-empty">Nenhum imóvel encontrado com esses filtros.</p>
+    {% else %}
+        <p class="home-empty">Ainda não há imóveis publicados.</p>
+    {% endif %}
+</div>
