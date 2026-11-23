@@ -20,6 +20,11 @@ class Property(models.Model):
         PUBLISHED = 'published', 'Publicado'
         INACTIVE = 'inactive', 'Inativo'
 
+    INFORMATION_FIELDS = (
+        'title', 'description', 'property_type', 'max_guests', 'bedrooms',
+        'bathrooms', 'beds', 'area_m2', 'is_furnished',
+    )
+
     title = models.CharField('título', max_length=200)
     description = models.TextField('descrição')
     property_type = models.CharField('tipo de imóvel', max_length=20, choices=Type.choices)
