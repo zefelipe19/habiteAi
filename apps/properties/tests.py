@@ -478,8 +478,109 @@ class PropertyManagementTests(TestCase):
         self.assertEqual(response.context['status_form']['status'].value(), Property.Status.DRAFT)
         self.assertContains(response, '<p class="property-photo-title">Sala de estar</p>', html=True)
         self.assertContains(response, 'data-photo-viewer')
-        self.assertContains(response, reverse('property_image_delete', args=[self.photo.pk]))
+        self.assertContains(response, reverse('property_edit', args=[self.own_property.pk]))
+        self.assertContains(response, f'name="removed_images" value="{self.photo.pk}"')
         self.assertNotContains(response, self.other_photo.image.url)
+
+    def edit_data(self, **changes):
+        return {
+            **{name: getattr(self.own_property, name) for name in Property.INFORMATION_FIELDS},
+            **changes,
+        }
+
+    def test_edits_information_and_photos_together(self):
+        client = Client(enforce_csrf_checks=True)
+        client.force_login(self.owner)
+        manage_url = reverse('property_manage', args=[self.own_property.pk])
+        url = reverse('property_edit', args=[self.own_property.pk])
+        client.get(manage_url)
+        old_file = self.media_root / self.photo.image.name
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = client.post(url, self.edit_data(
+                title='Meu apartamento atualizado',
+                description='Descrição atualizada.',
+                max_guests=4,
+                bedrooms=2,
+                area_m2='65,20',
+                images=[png_upload('varanda.png')],
+                image_titles=['Varanda'],
+                removed_images=[self.photo.pk],
+                status=Property.Status.PUBLISHED,
+                owner=self.other_user.pk,
+                csrfmiddlewaretoken=client.cookies['csrftoken'].value,
+                edited_fields='title,description,max_guests,bedrooms,area_m2,status,owner',
+            ))
+            self.assertTrue(old_file.exists())
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()['redirect'], manage_url)
+        self.own_property.refresh_from_db()
+        self.assertEqual(self.own_property.title, 'Meu apartamento atualizado')
+        self.assertEqual(self.own_property.description, 'Descrição atualizada.')
+        self.assertEqual(self.own_property.max_guests, 4)
+        self.assertEqual(self.own_property.bedrooms, 2)
+        self.assertEqual(self.own_property.area_m2, Decimal('65.20'))
+        self.assertEqual(self.own_property.status, Property.Status.DRAFT)
+        self.assertEqual(self.own_property.owner, self.owner)
+        photo = self.own_property.images.get()
+        self.assertEqual(photo.title, 'Varanda')
+        self.assertTrue((self.media_root / photo.image.name).is_file())
+        self.assertFalse(old_file.exists())
+
+    def test_editor_keeps_fields_changed_elsewhere_when_only_photos_are_edited(self):
+        self.client.force_login(self.owner)
+        data = self.edit_data(images=[png_upload('varanda.png')], edited_fields='')
+        Property.objects.filter(pk=self.own_property.pk).update(title='Título atualizado em outra aba')
+
+        response = self.client.post(reverse('property_edit', args=[self.own_property.pk]), data)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.own_property.refresh_from_db()
+        self.assertEqual(self.own_property.title, 'Título atualizado em outra aba')
+        self.assertEqual(self.own_property.images.count(), 2)
+
+    def test_editor_rejects_editing_or_removing_images_from_another_property(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse('property_edit', args=[self.other_property.pk]), self.edit_data())
+        self.assertEqual(response.status_code, 404)
+
+        response = self.client.post(
+            reverse('property_edit', args=[self.own_property.pk]),
+            self.edit_data(title='Tentativa', removed_images=[self.other_photo.pk]),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(response.json()['errors'])
+        self.own_property.refresh_from_db()
+        self.assertEqual(self.own_property.title, 'Meu apartamento')
+        self.assertTrue(PropertyImage.objects.filter(pk=self.other_photo.pk).exists())
+
+    def test_failed_edited_upload_rolls_back_fields_and_staged_removal(self):
+        self.client.force_login(self.owner)
+        storage = PropertyImage._meta.get_field('image').storage
+        save_file = storage.save
+
+        def save_first_file_only(name, content, **kwargs):
+            if name.endswith('falha.png'):
+                raise OSError('Falha simulada no armazenamento')
+            return save_file(name, content, **kwargs)
+
+        with patch.object(storage, 'save', side_effect=save_first_file_only):
+            response = self.client.post(
+                reverse('property_edit', args=[self.own_property.pk]),
+                self.edit_data(
+                    title='Tentativa', removed_images=[self.photo.pk],
+                    images=[png_upload('nova.png'), png_upload('falha.png')],
+                ),
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.own_property.refresh_from_db()
+        self.assertEqual(self.own_property.title, 'Meu apartamento')
+        self.assertEqual(list(self.own_property.images.all()), [self.photo])
+        self.assertTrue((self.media_root / self.photo.image.name).is_file())
+        self.assertFalse((self.media_root / 'properties/images/nova.png').exists())
 
     def test_owner_can_publish_and_hide_property_from_home(self):
         self.client.force_login(self.owner)
